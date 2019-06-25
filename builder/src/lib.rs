@@ -23,49 +23,59 @@ pub fn derive(input: TokenStream) -> TokenStream {
     }) = ast.data {
         named
     } else {
-        panic!("Only Struct's with named fields allowed.");
+        panic!("Only Structs with named fields allowed.");
     };
 
-    let optionized = fields.iter().map(|x| {
+    let optionized_fields = fields.iter().map(|x| {
 
-        let mut segments = Punctuated::<PathSegment, syn::token::Colon2>::new();
+        let ident = &x.ident;
+        let ty = &x.ty;
 
-        let old_path = if let Type::Path(TypePath{ path, ..}) = x.ty {
-            path
-        } else {
-            panic!("No type path found.")
-        };
-
-        segments.push(PathSegment{
-            ident: Ident::new(&format!("Option<{}>", old_path), x.span()),
-            arguments: PathArguments::None
-        });
-
-        let ty = Type::Path(TypePath {
-            qself: None,
-            path: Path {
-                leading_colon: None,
-                segments
-            }
-        });
-
-        let field = Field {
-            attrs: vec![],
-            ident: x.ident.clone(),
-            vis: Visibility::Inherited,
-            colon_token: x.colon_token,
-            ty,
-        };
-
-        field
+        quote! {
+            #ident: ::std::option::Option<#ty>
+        }
     });
 
-    eprintln!("{:#?}", fields);
+    let builder_methods = fields.iter().map(|x| {
+
+        let ident = &x.ident;
+        let ty = &x.ty;
+
+        quote! {
+            pub fn #ident (&mut self, val: #ty) -> &mut Self {
+
+                self.#ident = Some(val);
+                self
+            }
+        }
+    });
+
+    let field_mapping = fields.iter().map(|x| {
+
+        let ident = &x.ident;
+
+        quote! {
+            #ident: self.#ident.clone().ok_or("Option was None.")?
+        }
+    });
 
     let code = quote! {
 
         pub struct #builder_ident {
-            #(#optionized),*
+
+            #(#optionized_fields),*
+        }
+
+        impl #builder_ident {
+
+            #(#builder_methods)*
+
+            pub fn build(&self) -> ::std::result::Result<#name, Box<dyn ::std::error::Error>> {
+
+                Ok(#name {
+                    #(#field_mapping),*
+                })
+            }
         }
 
         impl #name {

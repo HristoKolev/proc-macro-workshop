@@ -1,46 +1,15 @@
-// Have the macro produce a struct for the builder state, and a `builder`
-// function that creates an empty instance of the builder.
+// Generate a `build` method to go from builder to original struct.
 //
-// As a quick start, try generating the following code (but make sure the type
-// name matches what is in the caller's input).
+// This method should require that every one of the fields has been explicitly
+// set; it should return an error if a field is missing. The precise error type
+// is not important. Consider using Box<dyn Error>, which you can construct
+// using the impl From<String> for Box<dyn Error>.
 //
-//     impl Command {
-//         pub fn builder() {}
-//     }
-//
-// At this point the test should pass because it isn't doing anything with the
-// builder yet, so `()` as the builder type is as good as any other.
-//
-// Before moving on, have the macro also generate:
-//
-//     pub struct CommandBuilder {
-//         executable: Option<String>,
-//         args: Option<Vec<String>>,
-//         env: Option<Vec<String>>,
-//         current_dir: Option<String>,
-//     }
-//
-// and in the `builder` function:
-//
-//     impl Command {
-//         pub fn builder() -> CommandBuilder {
-//             CommandBuilder {
-//                 executable: None,
-//                 args: None,
-//                 env: None,
-//                 current_dir: None,
-//             }
+//     impl CommandBuilder {
+//         pub fn build(&mut self) -> Result<Command, Box<dyn Error>> {
+//             ...
 //         }
 //     }
-//
-//
-// Resources:
-//
-//   - The Quote crate for putting together output from a macro:
-//     https://github.com/dtolnay/quote
-//
-//   - Joining together the type name + "Builder" to make the builder's name:
-//     https://docs.rs/syn/0.15/syn/struct.Ident.html
 
 use derive_builder::Builder;
 
@@ -53,7 +22,12 @@ pub struct Command {
 }
 
 fn main() {
-    let builder = Command::builder();
+    let mut builder = Command::builder();
+    builder.executable("cargo".to_owned());
+    builder.args(vec!["build".to_owned(), "--release".to_owned()]);
+    builder.env(vec![]);
+    builder.current_dir("..".to_owned());
 
-    let _ = builder;
+    let command = builder.build().unwrap();
+    assert_eq!(command.executable, "cargo");
 }
