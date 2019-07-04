@@ -94,3 +94,8 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
     code.into()
 }
+
+pub fn is_option_type(t: &Type) -> bool {
+
+
+}
